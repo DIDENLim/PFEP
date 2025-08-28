@@ -45,6 +45,29 @@
             margin-top: 5px;
         }
 
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 8px;
+            font-size: 0.8em;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .status-connected {
+            background: #28a745;
+        }
+
+        .status-error {
+            background: #dc3545;
+        }
+
         .scan-container {
             padding: 20px;
             text-align: center;
@@ -344,18 +367,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        @media (max-width: 480px) {
-            .modal-content {
-                padding: 25px 20px;
-                margin: 10px;
-            }
-            
-            .part-details {
-                grid-template-columns: 1fr;
-                gap: 8px;
-            }
-        }
-
         .test-section {
             margin-top: 30px; 
             padding: 20px; 
@@ -378,12 +389,50 @@
             background: #5a6fd8;
             transform: scale(0.98);
         }
+
+        .notion-status {
+            background: rgba(255,255,255,0.9);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .notion-success {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .notion-error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        @media (max-width: 480px) {
+            .modal-content {
+                padding: 25px 20px;
+                margin: 10px;
+            }
+            
+            .part-details {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="mobile-header">
         <h1>🔩 PFEP 시스템</h1>
         <div class="subtitle">디든로보틱스 스마트 재고관리</div>
+        <div class="status-indicator">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">노션 연결 확인 중...</span>
+        </div>
+    </div>
+
+    <div id="notionStatus" class="notion-status" style="display: none;">
+        <div id="notionStatusMessage"></div>
     </div>
 
     <div class="scan-container">
@@ -440,8 +489,8 @@
                 <label for="buyerSelect">구매자</label>
                 <select id="buyerSelect">
                     <option value="임석균">임석균</option>
-                    <option value="직원A">직원A</option>
-                    <option value="직원B">직원B</option>
+                    <option value="테스트A">테스트A</option>
+                    <option value="테스트B">테스트B</option>
                 </select>
             </div>
 
@@ -463,7 +512,7 @@
             <!-- 로딩 상태 -->
             <div id="orderLoading" class="loading" style="display: none;">
                 <div class="spinner"></div>
-                <div>주문 처리 중...</div>
+                <div>주문 처리 중...<br><small>노션에 데이터 기록 중</small></div>
             </div>
 
             <!-- 성공 상태 -->
@@ -489,6 +538,12 @@
     </div>
 
     <script>
+        // 노션 API 설정 (CORS 프록시 사용)
+        const NOTION_API_KEY = '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';
+        const NOTION_DATABASE_ID = '25dcaf064f7f815582d1da758a2919cd';
+        const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
+        const NOTION_API_URL = CORS_PROXY + 'https://api.notion.com/v1';
+
         // 부품 데이터베이스
         const partsDatabase = {
             '렌치볼트_M2_3': { name: '렌치볼트 SCM435', spec: 'M2×3mm', price: 7600, category: '볼트류' },
@@ -531,6 +586,110 @@
         let qrScanner = null;
         let isScanning = false;
         let currentPartData = null;
+        let notionConnected = false;
+
+        // 노션 연결 테스트
+        async function testNotionConnection() {
+            try {
+                const response = await fetch(`${NOTION_API_URL}/databases/${NOTION_DATABASE_ID}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${NOTION_API_KEY}`,
+                        'Notion-Version': '2022-06-28',
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    notionConnected = true;
+                    updateConnectionStatus('connected', '노션 연결됨');
+                } else {
+                    throw new Error(`API 오류: ${response.status}`);
+                }
+            } catch (error) {
+                console.error('노션 연결 오류:', error);
+                notionConnected = false;
+                updateConnectionStatus('error', '노션 연결 실패');
+            }
+        }
+
+        // 연결 상태 업데이트
+        function updateConnectionStatus(status, message) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            
+            statusDot.className = `status-dot status-${status}`;
+            statusText.textContent = message;
+        }
+
+        // 노션에 데이터 추가
+        async function addToNotion(orderData) {
+            if (!notionConnected) {
+                throw new Error('노션에 연결되지 않음');
+            }
+
+            const notionData = {
+                parent: {
+                    database_id: NOTION_DATABASE_ID
+                },
+                properties: {
+                    "내용": {
+                        title: [
+                            {
+                                text: {
+                                    content: orderData.partName + ` ${orderData.quantity}개`
+                                }
+                            }
+                        ]
+                    },
+                    "날짜": {
+                        date: {
+                            start: new Date().toISOString().split('T')[0]
+                        }
+                    },
+                    "구매자": {
+                        select: {
+                            name: orderData.buyer
+                        }
+                    },
+                    "연구과제분류": {
+                        select: {
+                            name: orderData.project
+                        }
+                    },
+                    "구분": {
+                        select: {
+                            name: "연구재료비"
+                        }
+                    },
+                    "품목": {
+                        select: {
+                            name: "원재료"
+                        }
+                    },
+                    "금액": {
+                        number: orderData.price
+                    }
+                }
+            };
+
+            const response = await fetch(`${NOTION_API_URL}/pages`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${NOTION_API_KEY}`,
+                    'Notion-Version': '2022-06-28',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(notionData)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`노션 API 오류: ${errorData.message || response.status}`);
+            }
+
+            return await response.json();
+        }
 
         // QR 스캔 관련 함수
         document.getElementById('scanButton').addEventListener('click', toggleQRScanner);
@@ -678,7 +837,7 @@
         }
 
         // 주문 확인
-        function confirmOrder() {
+        async function confirmOrder() {
             if (!currentPartData) return;
             
             const buyer = document.getElementById('buyerSelect').value;
@@ -700,12 +859,13 @@
                 status: 'ordered'
             };
 
-            // 각 시스템에 주문 전송 (시뮬레이션)
-            // 각 시스템에 주문 전송 (시뮬레이션)
-            setTimeout(() => {
-                sendToShemeks(orderData);
-                sendToNotion(orderData);
-                sendToFlex(orderData);
+            try {
+                // 각 시스템에 주문 전송
+                await Promise.all([
+                    sendToShemeks(orderData),
+                    addToNotion(orderData), // 실제 노션 API 호출
+                    sendToFlex(orderData)
+                ]);
 
                 // 주문 내역에 추가
                 orderHistory.unshift(orderData);
@@ -714,31 +874,57 @@
                 // 성공 화면 표시
                 document.getElementById('orderLoading').style.display = 'none';
                 document.getElementById('orderSuccess').style.display = 'block';
-            }, 2000);
+
+                // 노션 성공 상태 표시
+                showNotionStatus('success', '✅ 노션에 성공적으로 기록되었습니다!');
+
+            } catch (error) {
+                console.error('주문 처리 오류:', error);
+                
+                // 오류 처리
+                document.getElementById('orderLoading').style.display = 'none';
+                alert('주문 처리 중 오류가 발생했습니다: ' + error.message);
+                
+                // 노션 오류 상태 표시
+                showNotionStatus('error', '❌ 노션 기록 실패: ' + error.message);
+                
+                // 모달 닫기
+                closeModal();
+            }
         }
 
-        // 각 시스템으로 데이터 전송 (시뮬레이션)
-        function sendToShemeks(orderData) {
+        // 노션 상태 메시지 표시
+        function showNotionStatus(type, message) {
+            const statusDiv = document.getElementById('notionStatus');
+            const statusMessage = document.getElementById('notionStatusMessage');
+            
+            statusDiv.style.display = 'block';
+            statusMessage.textContent = message;
+            statusMessage.className = type === 'success' ? 'notion-success' : 'notion-error';
+            
+            // 3초 후 숨김
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        // 각 시스템으로 데이터 전송
+        async function sendToShemeks(orderData) {
+            // 쉬멕스 주문 시뮬레이션
             console.log('🔩 쉬멕스로 주문 전송:', {
                 제품명: orderData.partName,
                 수량: orderData.quantity,
                 연락처: '디든로보틱스 - ' + orderData.buyer
             });
+            
+            // API 연동 시 실제 구현
+            // return fetch('쉬멕스_API_URL', { ... });
+            
+            return new Promise(resolve => setTimeout(resolve, 500));
         }
 
-        function sendToNotion(orderData) {
-            console.log('📝 노션에 기록:', {
-                날짜: new Date(orderData.date).toLocaleDateString('ko-KR'),
-                구매자: orderData.buyer,
-                연구과제: orderData.project,
-                구분: '연구재료비',
-                품목: '원재료',
-                내용: orderData.partName,
-                금액: orderData.price
-            });
-        }
-
-        function sendToFlex(orderData) {
+        async function sendToFlex(orderData) {
+            // 플렉스 워크플로우 시뮬레이션
             console.log('📋 플렉스 워크플로우 생성:', {
                 연구과제분류: orderData.project,
                 분류: '연구재료비',
@@ -748,12 +934,25 @@
                 금액: orderData.price,
                 사유: orderData.partName
             });
+            
+            // API 연동 시 실제 구현
+            // return fetch('플렉스_API_URL', { ... });
+            
+            return new Promise(resolve => setTimeout(resolve, 500));
         }
 
         // 모달 닫기
         function closeModal() {
             document.getElementById('confirmationModal').style.display = 'none';
-            document.querySelector('.modal-content > div:not(#orderLoading):not(#orderSuccess)').style.display = 'block';
+            
+            // 모달 내용 초기화
+            const modalChildren = document.querySelector('.modal-content').children;
+            for (let i = 0; i < modalChildren.length; i++) {
+                if (modalChildren[i].id !== 'orderLoading' && modalChildren[i].id !== 'orderSuccess') {
+                    modalChildren[i].style.display = 'block';
+                }
+            }
+            
             document.getElementById('orderLoading').style.display = 'none';
             document.getElementById('orderSuccess').style.display = 'none';
             currentPartData = null;
@@ -791,9 +990,12 @@
         }
 
         // 페이지 로드시 초기화
-        window.onload = function() {
-            console.log('🔩 모바일 PFEP 시스템 시작');
+        window.onload = async function() {
+            console.log('🔩 노션 연동 PFEP 시스템 시작');
             console.log(`등록된 부품: ${Object.keys(partsDatabase).length}개`);
+            
+            // 노션 연결 테스트
+            await testNotionConnection();
             
             // PWA 설치 프롬프트
             if ('serviceWorker' in navigator) {
