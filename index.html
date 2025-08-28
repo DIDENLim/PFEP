@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>디든로보틱스 PFEP</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qr-scanner/1.4.2/qr-scanner.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        .mobile-header {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            padding: 15px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .mobile-header h1 {
+            font-size: 1.5em;
+            color: #667eea;
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .mobile-header .subtitle {
+            text-align: center;
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .scan-container {
+            padding: 20px;
+            text-align: center;
+        }
+
+        .scan-button {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 20px 30px;
+            font-size: 18px;
+            border-radius: 50px;
+            cursor: pointer;
+            width: 100%;
+            max-width: 300px;
+            box-shadow: 0 8px 30px rgba(76,175,80,0.3);
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .scan-button:active {
+            transform: scale(0.95);
+        }
+
+        .scan-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        #video {
+            width: 100%;
+            max-width: 400px;
+            border-radius: 15px;
+            margin: 20px 0;
+            display: none;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+        }
+
+        .confirmation-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px 25px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: modalSlideUp 0.3s ease-out;
+        }
+
+        @keyframes modalSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .modal-header h2 {
+            color: #2c3e50;
+            font-size: 1.4em;
+            margin-bottom: 10px;
+        }
+
+        .part-image {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px auto;
+            font-size: 2em;
+        }
+
+        .part-info {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .part-name {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .part-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .price-highlight {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #e74c3c;
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .last-order-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .last-order-info.warning {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        .last-order-info.success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-cancel:active {
+            background: #545b62;
+            transform: scale(0.95);
+        }
+
+        .btn-order {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .btn-order:active {
+            transform: scale(0.95);
+        }
+
+        .btn-order:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .form-section {
+            margin: 20px 0;
+        }
+
+        .form-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-section select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e1e1;
+            border-radius: 10px;
+            font-size: 16px;
+            background: white;
+        }
+
+        .success-animation {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .checkmark {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #28a745;
+            position: relative;
+            margin: 0 auto 20px auto;
+            animation: scaleUp 0.3s ease-out;
+        }
+
+        .checkmark::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        @keyframes scaleUp {
+            from {
+                transform: scale(0);
+            }
+            to {
+                transform: scale(1);
+            }
+        }
+
+        .order-history {
+            margin: 20px;
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .order-history h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .history-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .history-item.blocked {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 480px) {
+            .modal-content {
+                padding: 25px 20px;
+                margin: 10px;
+            }
+            
+            .part-details {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+        }
+
+        .test-section {
+            margin-top: 30px; 
+            padding: 20px; 
+            background: rgba(255,255,255,0.9); 
+            border-radius: 15px;
+        }
+
+        .test-button {
+            padding: 12px; 
+            background: #667eea; 
+            color: white; 
+            border: none; 
+            border-radius: 10px; 
+            margin: 5px 0;
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .test-button:active {
+            background: #5a6fd8;
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-header">
+        <h1>🔩 PFEP 시스템</h1>
+        <div class="subtitle">디든로보틱스 스마트 재고관리</div>
+    </div>
+
+    <div class="scan-container">
+        <button id="scanButton" class="scan-button">
+            📱 QR코드 스캔하기
+        </button>
+        <video id="video" autoplay playsinline></video>
+        
+        <!-- 테스트용 버튼들 -->
+        <div class="test-section">
+            <h4 style="margin-bottom: 15px; color: #666;">🧪 테스트용 QR코드</h4>
+            <div>
+                <button onclick="simulateQRScan('렌치볼트_M3_10|M3|10|100')" class="test-button">
+                    M3×10mm 렌치볼트 (4,600원)
+                </button>
+                <button onclick="simulateQRScan('렌치볼트_M2_5|M2|5|100')" class="test-button">
+                    M2×5mm 렌치볼트 (7,600원)
+                </button>
+                <button onclick="simulateQRScan('렌치볼트_M3_25|M3|25|100')" class="test-button">
+                    M3×25mm 렌치볼트 (6,000원)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 주문 확인 모달 -->
+    <div id="confirmationModal" class="confirmation-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="part-image">🔩</div>
+                <h2>주문 확인</h2>
+            </div>
+            
+            <div class="part-info">
+                <div class="part-name" id="modalPartName">렌치볼트 SCM435 M3×10mm</div>
+                <div class="part-details">
+                    <div class="detail-item">
+                        <span>수량</span>
+                        <span id="modalQuantity">100개</span>
+                    </div>
+                    <div class="detail-item">
+                        <span>규격</span>
+                        <span id="modalSpec">M3×10mm</span>
+                    </div>
+                </div>
+                <div class="price-highlight" id="modalPrice">4,600원</div>
+            </div>
+
+            <div id="lastOrderInfo" class="last-order-info success">
+                ✅ 주문 가능 (마지막 주문: 15일 전)
+            </div>
+
+            <div class="form-section">
+                <label for="buyerSelect">구매자</label>
+                <select id="buyerSelect">
+                    <option value="임석균">임석균</option>
+                    <option value="직원A">직원A</option>
+                    <option value="직원B">직원B</option>
+                </select>
+            </div>
+
+            <div class="form-section">
+                <label for="projectSelect">연구과제</label>
+                <select id="projectSelect">
+                    <option value="조선3사">조선3사</option>
+                    <option value="곡블록">곡블록</option>
+                </select>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-cancel" onclick="closeModal()">취소</button>
+                <button class="btn btn-order" id="confirmOrderBtn" onclick="confirmOrder()">
+                    📦 주문하기
+                </button>
+            </div>
+
+            <!-- 로딩 상태 -->
+            <div id="orderLoading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <div>주문 처리 중...</div>
+            </div>
+
+            <!-- 성공 상태 -->
+            <div id="orderSuccess" class="success-animation" style="display: none;">
+                <div class="checkmark"></div>
+                <h3 style="color: #28a745; margin-bottom: 10px;">주문 완료!</h3>
+                <p style="color: #666;">쉬멕스, 노션, 플렉스에<br>주문서가 전송되었습니다.</p>
+                <button class="btn btn-order" onclick="closeModal()" style="margin-top: 20px; width: 100%;">
+                    확인
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 주문 내역 -->
+    <div class="order-history">
+        <h3>📊 최근 주문 내역</h3>
+        <div id="historyList">
+            <p style="text-align: center; color: #666; padding: 20px;">
+                아직 주문 내역이 없습니다.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // 부품 데이터베이스
+        const partsDatabase = {
+            '렌치볼트_M2_3': { name: '렌치볼트 SCM435', spec: 'M2×3mm', price: 7600, category: '볼트류' },
+            '렌치볼트_M2_4': { name: '렌치볼트 SCM435', spec: 'M2×4mm', price: 7600, category: '볼트류' },
+            '렌치볼트_M2_5': { name: '렌치볼트 SCM435', spec: 'M2×5mm', price: 7600, category: '볼트류' },
+            '렌치볼트_M2_6': { name: '렌치볼트 SCM435', spec: 'M2×6mm', price: 7600, category: '볼트류' },
+            '렌치볼트_M2_8': { name: '렌치볼트 SCM435', spec: 'M2×8mm', price: 7600, category: '볼트류' },
+            '렌치볼트_M2_10': { name: '렌치볼트 SCM435', spec: 'M2×10mm', price: 7600, category: '볼트류' },
+            '렌치볼트_M2_12': { name: '렌치볼트 SCM435', spec: 'M2×12mm', price: 8400, category: '볼트류' },
+            '렌치볼트_M2_15': { name: '렌치볼트 SCM435', spec: 'M2×15mm', price: 8600, category: '볼트류' },
+            '렌치볼트_M2_20': { name: '렌치볼트 SCM435', spec: 'M2×20mm', price: 8800, category: '볼트류' },
+            '렌치볼트_M2.5_3': { name: '렌치볼트 SCM435', spec: 'M2.5×3mm', price: 7600, category: '볼트류' },
+            '렌치볼트_M2.5_4': { name: '렌치볼트 SCM435', spec: 'M2.5×4mm', price: 7600, category: '볼트류' },
+            '렌치볼트_M2.5_5': { name: '렌치볼트 SCM435', spec: 'M2.5×5mm', price: 7600, category: '볼트류' },
+            '렌치볼트_M2.5_6': { name: '렌치볼트 SCM435', spec: 'M2.5×6mm', price: 7600, category: '볼트류' },
+            '렌치볼트_M2.5_8': { name: '렌치볼트 SCM435', spec: 'M2.5×8mm', price: 7600, category: '볼트류' },
+            '렌치볼트_M2.5_10': { name: '렌치볼트 SCM435', spec: 'M2.5×10mm', price: 7600, category: '볼트류' },
+            '렌치볼트_M2.5_12': { name: '렌치볼트 SCM435', spec: 'M2.5×12mm', price: 8400, category: '볼트류' },
+            '렌치볼트_M2.5_15': { name: '렌치볼트 SCM435', spec: 'M2.5×15mm', price: 8600, category: '볼트류' },
+            '렌치볼트_M2.5_16': { name: '렌치볼트 SCM435', spec: 'M2.5×16mm', price: 8600, category: '볼트류' },
+            '렌치볼트_M2.5_20': { name: '렌치볼트 SCM435', spec: 'M2.5×20mm', price: 8800, category: '볼트류' },
+            '렌치볼트_M2.5_30': { name: '렌치볼트 SCM435', spec: 'M2.5×30mm', price: 8800, category: '볼트류' },
+            '렌치볼트_M3_4': { name: '렌치볼트 SCM435', spec: 'M3×4mm', price: 3500, category: '볼트류' },
+            '렌치볼트_M3_5': { name: '렌치볼트 SCM435', spec: 'M3×5mm', price: 3500, category: '볼트류' },
+            '렌치볼트_M3_6': { name: '렌치볼트 SCM435', spec: 'M3×6mm', price: 3700, category: '볼트류' },
+            '렌치볼트_M3_8': { name: '렌치볼트 SCM435', spec: 'M3×8mm', price: 3900, category: '볼트류' },
+            '렌치볼트_M3_10': { name: '렌치볼트 SCM435', spec: 'M3×10mm', price: 4600, category: '볼트류' },
+            '렌치볼트_M3_12': { name: '렌치볼트 SCM435', spec: 'M3×12mm', price: 4800, category: '볼트류' },
+            '렌치볼트_M3_15': { name: '렌치볼트 SCM435', spec: 'M3×15mm', price: 5000, category: '볼트류' },
+            '렌치볼트_M3_18': { name: '렌치볼트 SCM435', spec: 'M3×18mm', price: 5200, category: '볼트류' },
+            '렌치볼트_M3_20': { name: '렌치볼트 SCM435', spec: 'M3×20mm', price: 5400, category: '볼트류' },
+            '렌치볼트_M3_22': { name: '렌치볼트 SCM435', spec: 'M3×22mm', price: 5900, category: '볼트류' },
+            '렌치볼트_M3_25': { name: '렌치볼트 SCM435', spec: 'M3×25mm', price: 6000, category: '볼트류' },
+            '렌치볼트_M3_30': { name: '렌치볼트 SCM435', spec: 'M3×30mm', price: 6600, category: '볼트류' },
+            '렌치볼트_M3_35': { name: '렌치볼트 SCM435', spec: 'M3×35mm', price: 7200, category: '볼트류' }
+        };
+
+        // 주문 내역 및 변수
+        let orderHistory = [];
+        let qrScanner = null;
+        let isScanning = false;
+        let currentPartData = null;
+
+        // QR 스캔 관련 함수
+        document.getElementById('scanButton').addEventListener('click', toggleQRScanner);
+
+        async function toggleQRScanner() {
+            const button = document.getElementById('scanButton');
+            const video = document.getElementById('video');
+
+            if (!isScanning) {
+                try {
+                    qrScanner = new QrScanner(video, result => {
+                        processQRCode(result.data);
+                        stopQRScanner();
+                    }, {
+                        preferredCamera: 'environment',
+                        highlightScanRegion: true,
+                        highlightCodeOutline: true,
+                    });
+                    
+                    await qrScanner.start();
+                    isScanning = true;
+                    button.textContent = '⏹️ 스캔 중지';
+                    button.style.background = 'linear-gradient(45deg, #dc3545, #c82333)';
+                    video.style.display = 'block';
+                } catch (error) {
+                    alert('카메라 접근 오류: ' + error.message);
+                }
+            } else {
+                stopQRScanner();
+            }
+        }
+
+        function stopQRScanner() {
+            if (qrScanner) {
+                qrScanner.stop();
+                qrScanner = null;
+            }
+            isScanning = false;
+            document.getElementById('scanButton').textContent = '📱 QR코드 스캔하기';
+            document.getElementById('scanButton').style.background = 'linear-gradient(45deg, #4CAF50, #45a049)';
+            document.getElementById('video').style.display = 'none';
+        }
+
+        // 테스트용 QR 시뮬레이션
+        function simulateQRScan(qrData) {
+            processQRCode(qrData);
+        }
+
+        // QR코드 처리 및 모달 표시
+        function processQRCode(qrData) {
+            console.log('QR 스캔:', qrData);
+            
+            const parts = qrData.split('|');
+            if (parts.length !== 4) {
+                alert('잘못된 QR코드입니다.');
+                return;
+            }
+
+            const [productCode, spec, length, quantity] = parts;
+            const partInfo = partsDatabase[productCode];
+            
+            if (!partInfo) {
+                alert(`등록되지 않은 부품입니다: ${productCode}`);
+                return;
+            }
+
+            // 현재 부품 데이터 저장
+            currentPartData = {
+                productCode,
+                partInfo,
+                spec,
+                length,
+                quantity: parseInt(quantity)
+            };
+
+            // 중복 주문 확인
+            const duplicateCheck = checkDuplicateOrder(productCode);
+            
+            // 모달에 정보 채우기
+            fillModal(currentPartData, duplicateCheck);
+            
+            // 모달 표시
+            document.getElementById('confirmationModal').style.display = 'flex';
+        }
+
+        // 중복 주문 체크
+        function checkDuplicateOrder(productCode) {
+            const now = new Date();
+            const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+            
+            const recentOrder = orderHistory.find(order => 
+                order.productCode === productCode && 
+                new Date(order.date) > sevenDaysAgo
+            );
+            
+            if (recentOrder) {
+                const daysSince = Math.floor((now - new Date(recentOrder.date)) / (1000 * 60 * 60 * 24));
+                const daysUntilNext = 7 - daysSince;
+                return {
+                    isDuplicate: true,
+                    lastOrderDate: recentOrder.date,
+                    daysSince: daysSince,
+                    daysUntilNext: daysUntilNext
+                };
+            }
+            
+            // 임의의 마지막 주문일 생성 (데모용)
+            const randomDaysAgo = Math.floor(Math.random() * 30) + 8; // 8-38일 전
+            const fakeLastOrder = new Date(now - randomDaysAgo * 24 * 60 * 60 * 1000);
+            
+            return {
+                isDuplicate: false,
+                lastOrderDate: fakeLastOrder,
+                daysSince: randomDaysAgo,
+                daysUntilNext: 0
+            };
+        }
+
+        // 모달에 정보 채우기
+        function fillModal(partData, duplicateCheck) {
+            document.getElementById('modalPartName').textContent = 
+                `${partData.partInfo.name} ${partData.partInfo.spec}`;
+            document.getElementById('modalQuantity').textContent = `${partData.quantity}개`;
+            document.getElementById('modalSpec').textContent = partData.partInfo.spec;
+            document.getElementById('modalPrice').textContent = 
+                `${partData.partInfo.price.toLocaleString()}원`;
+
+            // 마지막 주문 정보 표시
+            const lastOrderInfo = document.getElementById('lastOrderInfo');
+            const confirmBtn = document.getElementById('confirmOrderBtn');
+            
+            if (duplicateCheck.isDuplicate) {
+                lastOrderInfo.className = 'last-order-info warning';
+                lastOrderInfo.innerHTML = 
+                    `🚫 중복 주문 차단<br>마지막 주문: ${duplicateCheck.daysSince}일 전<br>다음 주문 가능: ${duplicateCheck.daysUntilNext}일 후`;
+                confirmBtn.disabled = true;
+                confirmBtn.textContent = '주문 불가';
+            } else {
+                lastOrderInfo.className = 'last-order-info success';
+                lastOrderInfo.innerHTML = 
+                    `✅ 주문 가능<br>마지막 주문: ${duplicateCheck.daysSince}일 전`;
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = '📦 주문하기';
+            }
+        }
+
+        // 주문 확인
+        function confirmOrder() {
+            if (!currentPartData) return;
+            
+            const buyer = document.getElementById('buyerSelect').value;
+            const project = document.getElementById('projectSelect').value;
+            
+            // UI 상태 변경
+            document.querySelector('.modal-content > div:not(#orderLoading):not(#orderSuccess)').style.display = 'none';
+            document.getElementById('orderLoading').style.display = 'block';
+            
+            // 주문 데이터 생성
+            const orderData = {
+                date: new Date().toISOString(),
+                productCode: currentPartData.productCode,
+                partName: `${currentPartData.partInfo.name} ${currentPartData.partInfo.spec}`,
+                quantity: currentPartData.quantity,
+                price: currentPartData.partInfo.price,
+                buyer: buyer,
+                project: project,
+                status: 'ordered'
+            };
+
+            // 각 시스템에 주문 전송 (시뮬레이션)
+            // 각 시스템에 주문 전송 (시뮬레이션)
+            setTimeout(() => {
+                sendToShemeks(orderData);
+                sendToNotion(orderData);
+                sendToFlex(orderData);
+
+                // 주문 내역에 추가
+                orderHistory.unshift(orderData);
+                updateHistoryDisplay();
+
+                // 성공 화면 표시
+                document.getElementById('orderLoading').style.display = 'none';
+                document.getElementById('orderSuccess').style.display = 'block';
+            }, 2000);
+        }
+
+        // 각 시스템으로 데이터 전송 (시뮬레이션)
+        function sendToShemeks(orderData) {
+            console.log('🔩 쉬멕스로 주문 전송:', {
+                제품명: orderData.partName,
+                수량: orderData.quantity,
+                연락처: '디든로보틱스 - ' + orderData.buyer
+            });
+        }
+
+        function sendToNotion(orderData) {
+            console.log('📝 노션에 기록:', {
+                날짜: new Date(orderData.date).toLocaleDateString('ko-KR'),
+                구매자: orderData.buyer,
+                연구과제: orderData.project,
+                구분: '연구재료비',
+                품목: '원재료',
+                내용: orderData.partName,
+                금액: orderData.price
+            });
+        }
+
+        function sendToFlex(orderData) {
+            console.log('📋 플렉스 워크플로우 생성:', {
+                연구과제분류: orderData.project,
+                분류: '연구재료비',
+                상세품목: orderData.partName,
+                링크: '쉬멕스',
+                결제수단: '법인카드',
+                금액: orderData.price,
+                사유: orderData.partName
+            });
+        }
+
+        // 모달 닫기
+        function closeModal() {
+            document.getElementById('confirmationModal').style.display = 'none';
+            document.querySelector('.modal-content > div:not(#orderLoading):not(#orderSuccess)').style.display = 'block';
+            document.getElementById('orderLoading').style.display = 'none';
+            document.getElementById('orderSuccess').style.display = 'none';
+            currentPartData = null;
+        }
+
+        // 주문 내역 화면 업데이트
+        function updateHistoryDisplay() {
+            const historyList = document.getElementById('historyList');
+            
+            if (orderHistory.length === 0) {
+                historyList.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">아직 주문 내역이 없습니다.</p>';
+                return;
+            }
+
+            let historyHTML = '';
+            orderHistory.slice(0, 10).forEach(order => { // 최근 10개만 표시
+                const isBlocked = order.status === 'blocked';
+                const orderDate = new Date(order.date);
+                historyHTML += `
+                    <div class="history-item ${isBlocked ? 'blocked' : ''}">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <strong>${isBlocked ? '🚫' : '📦'} ${order.partName}</strong>
+                            <span style="color: #666; font-size: 0.8em;">
+                                ${orderDate.toLocaleDateString('ko-KR')}
+                            </span>
+                        </div>
+                        <div style="color: #666; font-size: 0.85em;">
+                            ${isBlocked ? '중복 주문 차단' : `${order.buyer} | ${order.project} | ${order.price?.toLocaleString()}원`}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            historyList.innerHTML = historyHTML;
+        }
+
+        // 페이지 로드시 초기화
+        window.onload = function() {
+            console.log('🔩 모바일 PFEP 시스템 시작');
+            console.log(`등록된 부품: ${Object.keys(partsDatabase).length}개`);
+            
+            // PWA 설치 프롬프트
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js').catch(console.error);
+            }
+        };
+    </script>
+</body>
+</html>
