@@ -538,8 +538,8 @@
     </div>
 
     <script>
-        // 노션 API 설정 (Vercel 서버리스 함수 사용)
-        const VERCEL_API_URL = 'https://pfep-chi.vercel.app/'; // 여기에 실제 Vercel URL 입력
+        // 노션 API 설정 (실제 Vercel URL)
+        const VERCEL_API_URL = 'https://pfep-chi.vercel.app/api/notion';
         const BYPASS_NOTION_CONNECTION = false; // 실제 API 사용
 
         // 부품 데이터베이스
@@ -599,18 +599,45 @@
                     })
                 });
 
-                const result = await response.json();
+                // 응답 상태 확인
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                // 응답 텍스트 먼저 확인
+                const responseText = await response.text();
+                console.log('🔗 Vercel 서버 응답:', responseText);
+
+                // JSON 파싱 시도
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (parseError) {
+                    throw new Error(`JSON 파싱 오류: ${responseText.substring(0, 200)}`);
+                }
                 
                 if (result.success) {
                     notionConnected = true;
-                    updateConnectionStatus('connected', '노션 연결됨');
+                    updateConnectionStatus('connected', '노션 연결됨 ✅');
+                    console.log('✅ 노션 API 연결 성공!');
                 } else {
                     throw new Error(result.error || 'API 오류');
                 }
             } catch (error) {
-                console.error('노션 연결 오류:', error);
+                console.error('❌ 노션 연결 오류:', error);
                 notionConnected = false;
-                updateConnectionStatus('error', '노션 연결 실패: ' + error.message);
+                
+                // 더 구체적인 오류 메시지
+                let errorMessage = error.message;
+                if (error.message.includes('Failed to fetch')) {
+                    errorMessage = 'Vercel 서버 접근 불가';
+                } else if (error.message.includes('JSON')) {
+                    errorMessage = '서버 응답 형식 오류';
+                } else if (error.message.includes('404')) {
+                    errorMessage = 'API 엔드포인트 없음';
+                }
+                
+                updateConnectionStatus('error', errorMessage);
             }
         }
 
