@@ -1,0 +1,12 @@
+{
+  "name": "pfep-notion-api",
+  "version": "1.0.0",
+  "description": "PFEP 시스템용 노션 API 서버리스 함수",
+  "main": "api/notion.js",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}
