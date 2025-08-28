@@ -1,8 +1,10 @@
 export default async function handler(req, res) {
+  // CORS 헤더 설정
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
+  // OPTIONS 요청 처리
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
@@ -18,6 +20,7 @@ export default async function handler(req, res) {
     const NOTION_DATABASE_ID = '25dcaf064f7f815582d1da758a2919cd';
 
     if (action === 'test') {
+      // 노션 연결 테스트
       const response = await fetch(`https://api.notion.com/v1/databases/${NOTION_DATABASE_ID}`, {
         method: 'GET',
         headers: {
@@ -29,11 +32,11 @@ export default async function handler(req, res) {
       if (response.ok) {
         res.status(200).json({ success: true, message: '노션 연결 성공' });
       } else {
-        const error = await response.text();
-        res.status(400).json({ success: false, error: `API 오류: ${response.status}` });
+        res.status(400).json({ success: false, error: `노션 API 오류: ${response.status}` });
       }
     } 
     else if (action === 'addOrder') {
+      // 주문 데이터 추가
       const notionData = {
         parent: { database_id: NOTION_DATABASE_ID },
         properties: {
@@ -62,14 +65,16 @@ export default async function handler(req, res) {
       });
 
       if (response.ok) {
-        const result = await response.json();
         res.status(200).json({ success: true, message: '노션에 성공적으로 기록됨' });
       } else {
         const error = await response.json();
         res.status(400).json({ success: false, error: error.message });
       }
+    } else {
+      res.status(400).json({ error: 'Invalid action' });
     }
   } catch (error) {
+    console.error('서버 오류:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 }
