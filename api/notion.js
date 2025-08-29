@@ -1,73 +1,45 @@
-// api/notion.js (컬럼명 수정 완료!)
+// api/notion.js - 완전 수정된 버전
 export default async function handler(req, res) {
-  // CORS 헤더 설정
+  // CORS 헤더 설정 (모든 응답에 적용)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
+  // OPTIONS 요청 처리
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(200).end();
   }
 
+  // GET 요청 처리 (테스트용)
+  if (req.method === 'GET') {
+    return res.status(200).json({ 
+      message: 'PFEP Notion API가 정상 작동 중입니다.',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // POST 요청만 허용
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  try {
-    const { action, data } = req.body;
-    const NOTION_API_KEY = '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';
-    const NOTION_DATABASE_ID = '25dcaf064f7f815582d1da758a2919cd';
-
-    console.log(`[API] 요청: ${action}`);
-
-    if (action === 'test') {
-      try {
-        const response = await fetch(`https://api.notion.com/v1/databases/${NOTION_DATABASE_ID}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${NOTION_API_KEY}`,
-            'Notion-Version': '2022-06-28'
-          }
-        });
-
-        if (response.ok) {
-          const dbInfo = await response.json();
-          console.log('[SUCCESS] 노션 데이터베이스 연결 성공');
-          
-          return res.status(200).json({ 
-            success: true, 
-            message: '노션 연결 성공!',
-            dbTitle: dbInfo.title?.[0]?.plain_text || 'PFEP 테스트',
-            columns: Object.keys(dbInfo.properties)
-          });
-        } else {
-          const errorText = await response.text();
-          console.error('[ERROR] 노션 API 오류:', response.status, errorText);
-          
-          return res.status(200).json({ 
-            success: false, // api/notion.js (정확한 컬럼명으로 최종 수정!)
-export default async function handler(req, res) {
-  // CORS 헤더 설정
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  const NOTION_API_KEY = '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';
+  const NOTION_DATABASE_ID = '25dcaf064f7f815582d1da758a2919cd';
 
   try {
-    const { action, data } = req.body;
-    const NOTION_API_KEY = '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';
-    const NOTION_DATABASE_ID = '25dcaf064f7f815582d1da758a2919cd';
+    // 요청 본문 파싱
+    let body;
+    try {
+      body = req.body || {};
+    } catch (e) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid JSON in request body' 
+      });
+    }
 
-    console.log(`[API] ${action} 요청 받음`);
+    const { action, data } = body;
+    console.log(`[${new Date().toISOString()}] Action: ${action}`);
 
     if (action === 'test') {
       // 노션 연결 테스트
@@ -76,38 +48,54 @@ export default async function handler(req, res) {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${NOTION_API_KEY}`,
-            'Notion-Version': '2022-06-28'
+            'Notion-Version': '2022-06-28',
+            'Content-Type': 'application/json'
           }
         });
 
+        const responseData = await response.json();
+
         if (response.ok) {
-          const dbInfo = await response.json();
-          console.log('[SUCCESS] 노션 데이터베이스 연결 성공!');
-          
+          console.log('[SUCCESS] 노션 데이터베이스 연결 성공');
           return res.status(200).json({ 
             success: true, 
             message: '노션 연결 성공!',
-            dbTitle: dbInfo.title?.[0]?.plain_text || 'PFEP 테스트'
+            database: responseData.title?.[0]?.plain_text || 'PFEP 데이터베이스'
           });
         } else {
-          console.error('[ERROR] 노션 API 오류:', response.status);
+          console.error('[ERROR] 노션 API 오류:', response.status, responseData);
           return res.status(200).json({ 
             success: false, 
-            error: `노션 연결 실패: ${response.status}`
+            error: `노션 API 오류: ${response.status} - ${responseData.message || 'Unknown error'}`
           });
         }
-      } catch (error) {
-        console.error('[ERROR] 연결 오류:', error);
-        return res.status(200).json({
-          success: false,
-          error: `연결 오류: ${error.message}`
+      } catch (fetchError) {
+        console.error('[ERROR] 노션 연결 실패:', fetchError);
+        return res.status(200).json({ 
+          success: false, 
+          error: `연결 오류: ${fetchError.message}`
         });
       }
-    }
+    } 
     else if (action === 'addOrder') {
-      console.log('[API] 노션에 주문 데이터 추가 시작');
-      
-      // 실제 노션 컬럼명에 정확히 맞춘 데이터 구성
+      // 주문 데이터 검증
+      if (!data) {
+        return res.status(400).json({ 
+          success: false, 
+          error: '주문 데이터가 없습니다' 
+        });
+      }
+
+      // 안전한 데이터 추출 (기본값 설정)
+      const partName = data.partName || '알 수 없는 부품';
+      const quantity = parseInt(data.quantity) || 100;
+      const price = parseInt(data.price) || 0;
+      const buyer = data.buyer || '임석균';
+      const project = data.project || '조선3사';
+
+      console.log('[INFO] 주문 데이터:', { partName, quantity, price, buyer, project });
+
+      // 노션 데이터 구성 (실제 컬럼명에 맞춰 수정)
       const notionData = {
         parent: {
           database_id: NOTION_DATABASE_ID
@@ -117,7 +105,7 @@ export default async function handler(req, res) {
             title: [
               {
                 text: {
-                  content: `${data.partName} ${data.quantity}개 주문`
+                  content: `${partName} ${quantity}개 주문`
                 }
               }
             ]
@@ -129,12 +117,12 @@ export default async function handler(req, res) {
           },
           "구매자": {
             select: {
-              name: data.buyer
+              name: buyer
             }
           },
           "연구과제분류": {
             select: {
-              name: data.project
+              name: project
             }
           },
           "구분": {
@@ -151,7 +139,7 @@ export default async function handler(req, res) {
             rich_text: [
               {
                 text: {
-                  content: `${data.partName} ${data.quantity}개`
+                  content: `${partName} ${quantity}개`
                 }
               }
             ]
@@ -166,14 +154,14 @@ export default async function handler(req, res) {
             ]
           },
           "결제금액": {
-            number: data.price
+            number: price
           }
         }
       };
 
-      console.log('[API] 노션 전송 데이터 준비 완료');
-
       try {
+        console.log('[INFO] 노션에 데이터 전송 시작...');
+        
         const response = await fetch('https://api.notion.com/v1/pages', {
           method: 'POST',
           headers: {
@@ -184,41 +172,45 @@ export default async function handler(req, res) {
           body: JSON.stringify(notionData)
         });
 
+        const responseData = await response.json();
+
         if (response.ok) {
-          const result = await response.json();
-          console.log('[SUCCESS] 노션 기록 성공! 페이지 ID:', result.id);
-          
+          console.log('[SUCCESS] 노션 기록 성공! Page ID:', responseData.id);
           return res.status(200).json({ 
             success: true, 
-            message: '노션에 성공적으로 기록됨!',
-            pageId: result.id
+            message: '노션에 성공적으로 기록되었습니다!',
+            pageId: responseData.id,
+            url: responseData.url
           });
         } else {
-          const errorData = await response.json();
-          console.error('[ERROR] 노션 기록 실패:', errorData);
-          
+          console.error('[ERROR] 노션 기록 실패:', response.status, responseData);
           return res.status(200).json({ 
             success: false, 
-            error: `기록 실패: ${errorData.message || response.status}`,
-            details: errorData
+            error: `노션 기록 실패: ${responseData.message || response.status}`,
+            details: responseData
           });
         }
-      } catch (error) {
-        console.error('[ERROR] API 호출 오류:', error);
-        return res.status(200).json({
-          success: false,
-          error: `API 오류: ${error.message}`
+      } catch (fetchError) {
+        console.error('[ERROR] API 호출 오류:', fetchError);
+        return res.status(200).json({ 
+          success: false, 
+          error: `API 호출 오류: ${fetchError.message}`
         });
       }
-    }
+    } 
     else {
-      return res.status(400).json({ error: 'Invalid action' });
+      return res.status(400).json({ 
+        success: false, 
+        error: `지원하지 않는 액션: ${action}` 
+      });
     }
-  } catch (error) {
-    console.error('[ERROR] 서버 오류:', error);
+
+  } catch (globalError) {
+    console.error('[GLOBAL ERROR]:', globalError);
     return res.status(500).json({ 
       success: false, 
-      error: `서버 오류: ${error.message}`
+      error: `서버 오류: ${globalError.message}`,
+      stack: process.env.NODE_ENV === 'development' ? globalError.stack : undefined
     });
   }
 }
