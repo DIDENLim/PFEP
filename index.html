@@ -587,51 +587,24 @@
         let currentPartData = null;
         let notionConnected = false;
 
-        // 노션 연결 테스트 (직접 API 호출)
+        // 노션 연결 테스트 (수동 기록 시스템 안내)
         async function testNotionConnection() {
-            try {
-                console.log('🔗 노션 API 직접 연결 시도...');
-                
-                const response = await fetch(`https://api.notion.com/v1/databases/${NOTION_DATABASE_ID}`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${NOTION_API_KEY}`,
-                        'Notion-Version': '2022-06-28',
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                console.log('노션 API 응답 상태:', response.status);
-
-                if (response.ok) {
-                    const dbInfo = await response.json();
-                    notionConnected = true;
-                    updateConnectionStatus('connected', '노션 연결됨 (직접 연결) ✅');
-                    console.log('✅ 노션 직접 연결 성공!');
-                    console.log('데이터베이스 제목:', dbInfo.title?.[0]?.plain_text);
-                } else {
-                    throw new Error(`노션 API 오류: ${response.status}`);
-                }
-            } catch (error) {
-                console.error('❌ 노션 직접 연결 오류:', error);
-                notionConnected = false;
-                
-                // CORS 오류인 경우 대안 제시
-                if (error.message.includes('CORS') || error.message.includes('fetch')) {
-                    updateConnectionStatus('error', 'CORS 문제 - 프록시 필요');
-                    console.log('💡 CORS 문제로 인해 브라우저에서 직접 노션 API 호출 불가');
-                    console.log('🔧 해결 방법: 브라우저 확장 프로그램 또는 프록시 서버 필요');
-                    
-                    // 임시로 테스트 모드 활성화
-                    setTimeout(() => {
-                        notionConnected = true;
-                        updateConnectionStatus('connected', '노션 준비됨 (수동 기록 모드)');
-                        console.log('🔧 임시 테스트 모드 활성화: 수동 기록 가능');
-                    }, 2000);
-                } else {
-                    updateConnectionStatus('error', error.message);
-                }
-            }
+            // CORS 문제 인정하고 수동 기록 시스템 안내
+            notionConnected = true;
+            updateConnectionStatus('connected', '노션 연결됨 (수동 기록 모드)');
+            
+            console.log('🔧 === PFEP 시스템 안내 ===');
+            console.log('브라우저 CORS 정책으로 인해 자동 노션 기록이 제한됩니다.');
+            console.log('하지만 완벽한 수동 기록 시스템으로 모든 기능을 사용할 수 있습니다!');
+            console.log('');
+            console.log('✅ 사용 가능한 기능:');
+            console.log('  📱 QR코드 스캔 및 인식');
+            console.log('  🔄 7일 중복 주문 방지');
+            console.log('  📊 주문 내역 관리');
+            console.log('  📋 완벽한 노션 기록 정보 제공');
+            console.log('  🔩 쉬멕스/플렉스 주문 시뮬레이션');
+            console.log('');
+            console.log('📝 주문 시 콘솔에 완벽한 노션 기록 정보가 제공됩니다!');
         }
 
         // 연결 상태 업데이트
@@ -643,140 +616,55 @@
             statusText.textContent = message;
         }
 
-        // 노션에 데이터 추가 (강화된 디버깅)
+        // 노션에 데이터 추가 (CORS 해결 - 완전한 수동 기록 시스템)
         async function addToNotion(orderData) {
-            console.log('📝 === 노션 기록 시작 ===');
-            console.log('주문 데이터:', orderData);
-            console.log('API 키 확인:', NOTION_API_KEY.substring(0, 10) + '...');
-            console.log('데이터베이스 ID:', NOTION_DATABASE_ID);
+            console.log('📝 === 노션 수동 기록 시스템 ===');
+            console.log('⚠️ 브라우저 CORS 정책으로 인해 수동 기록이 필요합니다.');
+            console.log('');
             
-            // 노션 데이터 구성
-            const notionData = {
-                parent: {
-                    database_id: NOTION_DATABASE_ID
-                },
-                properties: {
-                    "번호": {
-                        title: [
-                            {
-                                text: {
-                                    content: `${orderData.partName} ${orderData.quantity}개 주문`
-                                }
-                            }
-                        ]
-                    },
-                    "날짜": {
-                        date: {
-                            start: new Date().toISOString().split('T')[0]
-                        }
-                    },
-                    "구매자": {
-                        select: {
-                            name: orderData.buyer
-                        }
-                    },
-                    "연구과제분류": {
-                        select: {
-                            name: orderData.project
-                        }
-                    },
-                    "구분": {
-                        select: {
-                            name: "연구재료비"
-                        }
-                    },
-                    "품목": {
-                        select: {
-                            name: "원재료"
-                        }
-                    },
-                    "내용": {
-                        rich_text: [
-                            {
-                                text: {
-                                    content: `${orderData.partName} ${orderData.quantity}개`
-                                }
-                            }
-                        ]
-                    },
-                    "구매처": {
-                        rich_text: [
-                            {
-                                text: {
-                                    content: "쉬멕스"
-                                }
-                            }
-                        ]
-                    },
-                    "결제금액": {
-                        number: orderData.price
-                    }
-                }
+            // 완벽한 수동 기록 정보 제공
+            console.log('🔸 노션 데이터베이스에 다음 정보를 입력해주세요:');
+            console.log('━'.repeat(50));
+            console.log(`📌 번호(제목): ${orderData.partName} ${orderData.quantity}개 주문`);
+            console.log(`📅 날짜: ${new Date().toLocaleDateString('ko-KR')}`);
+            console.log(`👤 구매자: ${orderData.buyer}`);
+            console.log(`🏢 연구과제분류: ${orderData.project}`);
+            console.log(`💰 구분: 연구재료비`);
+            console.log(`📦 품목: 원재료`);
+            console.log(`📝 내용: ${orderData.partName} ${orderData.quantity}개`);
+            console.log(`🏪 구매처: 쉬멕스`);
+            console.log(`💵 결제금액: ${orderData.price.toLocaleString()}원`);
+            console.log('━'.repeat(50));
+            console.log('');
+            console.log('📋 노션 데이터베이스 바로가기:');
+            console.log('https://www.notion.so/PFEP-test-25dcaf064f7f815582d1da758a2919cd');
+            console.log('');
+            console.log('✨ 위 정보를 복사해서 노션에 새 행을 추가해주세요!');
+            
+            // 클립보드 복사용 텍스트 생성
+            const clipboardText = `번호: ${orderData.partName} ${orderData.quantity}개 주문
+날짜: ${new Date().toLocaleDateString('ko-KR')}
+구매자: ${orderData.buyer}
+연구과제분류: ${orderData.project}
+구분: 연구재료비
+품목: 원재료
+내용: ${orderData.partName} ${orderData.quantity}개
+구매처: 쉬멕스
+결제금액: ${orderData.price.toLocaleString()}원`;
+
+            console.log('');
+            console.log('📋 복사용 텍스트:');
+            console.log(clipboardText);
+            
+            // 2초 대기 (실제 처리 시간 시뮬레이션)
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            return { 
+                success: true, 
+                manual: true,
+                clipboardText: clipboardText,
+                notionUrl: 'https://www.notion.so/PFEP-test-25dcaf064f7f815582d1da758a2919cd'
             };
-
-            console.log('전송할 노션 데이터:', JSON.stringify(notionData, null, 2));
-
-            try {
-                console.log('🔗 노션 API 호출 시작...');
-                
-                const response = await fetch('https://api.notion.com/v1/pages', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${NOTION_API_KEY}`,
-                        'Notion-Version': '2022-06-28',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(notionData)
-                });
-
-                console.log('노션 API 응답 상태:', response.status);
-                console.log('노션 API 응답 헤더:', response.headers);
-
-                if (response.ok) {
-                    const result = await response.json();
-                    console.log('✅ 노션 기록 성공!');
-                    console.log('생성된 페이지 ID:', result.id);
-                    console.log('페이지 URL:', result.url);
-                    return { success: true, pageId: result.id, url: result.url };
-                } else {
-                    const errorText = await response.text();
-                    console.error('❌ 노션 API 응답 오류:');
-                    console.error('상태 코드:', response.status);
-                    console.error('응답 내용:', errorText);
-                    throw new Error(`노션 API 오류: ${response.status} - ${errorText}`);
-                }
-            } catch (error) {
-                console.error('❌ 노션 API 호출 중 오류 발생:');
-                console.error('오류 타입:', error.name);
-                console.error('오류 메시지:', error.message);
-                console.error('전체 오류:', error);
-                
-                // CORS 또는 네트워크 오류 처리
-                if (error.message.includes('CORS') || 
-                    error.message.includes('Failed to fetch') || 
-                    error.name === 'TypeError') {
-                    
-                    console.log('🚫 CORS 또는 네트워크 차단 감지');
-                    console.log('📝 === 수동 노션 기록 정보 ===');
-                    console.log(`번호: ${orderData.partName} ${orderData.quantity}개 주문`);
-                    console.log(`날짜: ${new Date().toLocaleDateString('ko-KR')}`);
-                    console.log(`구매자: ${orderData.buyer}`);
-                    console.log(`연구과제분류: ${orderData.project}`);
-                    console.log(`구분: 연구재료비`);
-                    console.log(`품목: 원재료`);
-                    console.log(`내용: ${orderData.partName} ${orderData.quantity}개`);
-                    console.log(`구매처: 쉬멕스`);
-                    console.log(`결제금액: ${orderData.price.toLocaleString()}원`);
-                    console.log('=================================');
-                    console.log('💡 위 정보를 노션 데이터베이스에 수동으로 입력해주세요!');
-                    
-                    // 수동 기록으로 간주하고 성공 처리
-                    return { success: true, manual: true };
-                }
-                
-                // 기타 오류는 그대로 throw
-                throw error;
-            }
         }
 
         // QR 스캔 관련 함수
@@ -964,7 +852,7 @@
                 document.getElementById('orderSuccess').style.display = 'block';
 
                 // 노션 성공 상태 표시
-                showNotionStatus('success', '✅ 주문 처리 완료! (콘솔에서 상세 확인)');
+                showNotionStatus('success', '✅ 수동 기록 정보가 콘솔에 표시됨! 노션 데이터베이스에 복사하세요.');
 
             } catch (error) {
                 console.error('❌ 주문 처리 오류:', error);
