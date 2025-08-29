@@ -517,8 +517,9 @@
     </div>
 
     <script>
-        // 설정
+        // 설정 - 올바른 데이터베이스 ID로 통일
         const VERCEL_API_URL = 'https://pfep-chi.vercel.app/api/notion';
+        const NOTION_DATABASE_ID = '25ecaf064f7f80da9a99e205b7190aa0'; // 신 데이터베이스 ID
         
         // 부품 데이터베이스
         const partsDatabase = {
@@ -564,9 +565,9 @@
         let currentPartData = null;
         let notionConnected = false;
 
-        // 노션 연결 테스트 - Vercel API 사용
+        // 노션 연결 테스트
         async function testNotionConnection() {
-            console.log('🔗 Vercel API를 통한 노션 연결 테스트...');
+            console.log('🔗 노션 연결 테스트 시작...');
             updateConnectionStatus('warning', '노션 연결 테스트 중...');
             
             try {
@@ -580,19 +581,19 @@
                     })
                 });
 
-                console.log('Vercel API 응답 상태:', response.status);
+                console.log('API 응답 상태:', response.status);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 
                 const result = await response.json();
-                console.log('노션 연결 응답:', result);
+                console.log('연결 테스트 결과:', result);
 
                 if (result.success) {
                     notionConnected = true;
-                    updateConnectionStatus('connected', `노션 연결 성공! (${result.database || '데이터베이스'})`);
-                    showNotionStatus('success', `노션 자동 기록 활성화됨 - ${result.message}`);
+                    updateConnectionStatus('connected', `노션 연결 성공!`);
+                    showNotionStatus('success', `노션 자동 기록 활성화 - ${result.message}`);
                     console.log('✅ 노션 자동 기록 준비 완료!');
                 } else {
                     throw new Error(result.error || '연결 테스트 실패');
@@ -600,13 +601,12 @@
             } catch (error) {
                 console.error('❌ 노션 연결 실패:', error);
                 notionConnected = false;
-                updateConnectionStatus('error', '노션 연결 실패 - 수동 모드');
+                updateConnectionStatus('error', '노션 연결 실패');
                 showNotionStatus('error', `연결 실패: ${error.message}`);
                 
-                // 3초 후 수동 모드 활성화
                 setTimeout(() => {
-                    updateConnectionStatus('warning', '수동 기록 모드 활성화');
-                    showNotionStatus('warning', '수동 기록 모드 - 콘솔에서 복사하여 노션에 붙여넣으세요');
+                    updateConnectionStatus('warning', '수동 기록 모드');
+                    showNotionStatus('warning', '수동 기록 모드 - 콘솔 확인 필요');
                 }, 3000);
             }
         }
@@ -620,9 +620,9 @@
             statusText.textContent = message;
         }
 
-        // 노션에 실제 데이터 추가 - Vercel API 사용
+        // 노션에 데이터 추가
         async function addToNotion(orderData) {
-            console.log('📝 === 노션 자동 기록 시작 ===');
+            console.log('📝 === 노션 기록 시작 ===');
             console.log('주문 데이터:', orderData);
 
             try {
@@ -637,32 +637,29 @@
                     })
                 });
 
-                console.log('노션 API 호출 응답 상태:', response.status);
+                console.log('API 호출 응답:', response.status);
 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 
                 const result = await response.json();
-                console.log('노션 기록 응답:', result);
+                console.log('노션 기록 결과:', result);
 
                 if (result.success) {
                     console.log('✅ 노션 자동 기록 성공!');
                     console.log('📄 페이지 ID:', result.pageId);
-                    if (result.url) {
-                        console.log('🔗 노션 페이지 URL:', result.url);
-                    }
                     return { success: true, auto: true, pageId: result.pageId };
                 } else {
                     throw new Error(result.error || '노션 기록 실패');
                 }
             } catch (error) {
-                console.error('❌ 노션 자동 기록 실패:', error);
+                console.error('❌ 노션 기록 실패:', error);
                 
-                // 실패 시 수동 기록 정보 표시
-                console.log('📝 === 자동 기록 실패 - 수동 기록 정보 ===');
+                // 수동 기록 정보 표시
+                console.log('📝 === 수동 기록 정보 ===');
                 console.log('━'.repeat(50));
-                console.log(`번호(제목): ${orderData.partName} ${orderData.quantity}개 주문`);
+                console.log(`번호: ${orderData.partName} ${orderData.quantity}개 주문`);
                 console.log(`날짜: ${new Date().toLocaleDateString('ko-KR')}`);
                 console.log(`구매자: ${orderData.buyer}`);
                 console.log(`연구과제분류: ${orderData.project}`);
@@ -670,9 +667,9 @@
                 console.log(`품목: 원재료`);
                 console.log(`내용: ${orderData.partName} ${orderData.quantity}개`);
                 console.log(`구매처: 쉬멕스`);
-                console.log(`결제금액: ${orderData.price.toLocaleString()}원`);
+                console.log(`결제금액: ${orderData.price}`);
                 console.log('━'.repeat(50));
-                console.log('🔗 노션 데이터베이스: https://www.notion.so/PFEP-test-25dcaf064f7f815582d1da758a2919cd');
+                console.log(`노션 데이터베이스: https://www.notion.so/${NOTION_DATABASE_ID}`);
                 
                 return { success: true, manual: true, error: error.message };
             }
@@ -987,9 +984,18 @@
 
         // 페이지 로드시 초기화
         window.onload = async function() {
-            console.log('🔩 노션 연동 PFEP 시스템 시작');
+            console.log('🔩 PFEP 시스템 시작');
             console.log(`등록된 부품: ${Object.keys(partsDatabase).length}개`);
-            console.log(`Vercel API URL: ${VERCEL_API_URL}`);
+            console.log(`API URL: ${VERCEL_API_URL}`);
             
             // 노션 연결 테스트
             await testNotionConnection();
+            
+            // PWA 설정
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js').catch(console.error);
+            }
+        };
+    </script>
+</body>
+</html>
