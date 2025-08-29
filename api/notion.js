@@ -1,6 +1,6 @@
-// api/notion.js - 완전 수정된 버전
+// api/notion.js - 새 데이터베이스 ID로 수정
 export default async function handler(req, res) {
-  // CORS 헤더 설정 (모든 응답에 적용)
+  // CORS 헤더 설정
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -24,7 +24,7 @@ export default async function handler(req, res) {
   }
 
   const NOTION_API_KEY = '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';
-  const NOTION_DATABASE_ID = '25dcaf064f7f815582d1da758a2919cd';
+  const NOTION_DATABASE_ID = '25ecaf064f7f80da9a99e205b7190aa0'; // 새 데이터베이스 ID
 
   try {
     // 요청 본문 파싱
@@ -86,7 +86,7 @@ export default async function handler(req, res) {
         });
       }
 
-      // 안전한 데이터 추출 (기본값 설정)
+      // 안전한 데이터 추출
       const partName = data.partName || '알 수 없는 부품';
       const quantity = parseInt(data.quantity) || 100;
       const price = parseInt(data.price) || 0;
@@ -95,7 +95,7 @@ export default async function handler(req, res) {
 
       console.log('[INFO] 주문 데이터:', { partName, quantity, price, buyer, project });
 
-      // 노션 데이터 구성 (실제 컬럼명에 맞춰 수정)
+      // 노션 데이터 구성
       const notionData = {
         parent: {
           database_id: NOTION_DATABASE_ID
