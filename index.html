@@ -991,10 +991,10 @@
             // 노션 연결 테스트
             await testNotionConnection();
             
-            // PWA 설정
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/sw.js').catch(console.error);
-            }
+            // ServiceWorker 등록 제거 (404 오류 방지)
+            // if ('serviceWorker' in navigator) {
+            //     navigator.serviceWorker.register('/sw.js').catch(console.error);
+            // }
         };
     </script>
 </body>
