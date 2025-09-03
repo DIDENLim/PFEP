@@ -759,33 +759,15 @@
             document.getElementById('confirmationModal').style.display = 'flex';
         }
 
-        // 중복 주문 체크
+        // 중복 주문 체크 (7일 제한 제거)
         function checkDuplicateOrder(productCode) {
+            // 중복 체크를 완전히 비활성화 - 항상 주문 가능으로 처리
             const now = new Date();
-            const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
-            
-            const recentOrder = orderHistory.find(order => 
-                order.productCode === productCode && 
-                new Date(order.date) > sevenDaysAgo
-            );
-            
-            if (recentOrder) {
-                const daysSince = Math.floor((now - new Date(recentOrder.date)) / (1000 * 60 * 60 * 24));
-                const daysUntilNext = 7 - daysSince;
-                return {
-                    isDuplicate: true,
-                    lastOrderDate: recentOrder.date,
-                    daysSince: daysSince,
-                    daysUntilNext: daysUntilNext
-                };
-            }
-            
-            // 임의의 마지막 주문일 생성 (데모용)
-            const randomDaysAgo = Math.floor(Math.random() * 30) + 8;
+            const randomDaysAgo = Math.floor(Math.random() * 30) + 8; // 8-38일 전 (가짜 데이터)
             const fakeLastOrder = new Date(now - randomDaysAgo * 24 * 60 * 60 * 1000);
             
             return {
-                isDuplicate: false,
+                isDuplicate: false, // 항상 중복 아님으로 처리
                 lastOrderDate: fakeLastOrder,
                 daysSince: randomDaysAgo,
                 daysUntilNext: 0
