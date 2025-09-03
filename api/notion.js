@@ -1,4 +1,4 @@
-// api/notion.js - 새 데이터베이스 ID로 수정
+// api/notion.js - 모든 컬럼을 Text 타입으로 수정
 export default async function handler(req, res) {
   // CORS 헤더 설정
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -24,21 +24,10 @@ export default async function handler(req, res) {
   }
 
   const NOTION_API_KEY = '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';
-  const NOTION_DATABASE_ID = '25ecaf064f7f80da9a99e205b7190aa0'; // 새 데이터베이스 ID
+  const NOTION_DATABASE_ID = '25ecaf064f7f80da9a99e205b7190aa0';
 
   try {
-    // 요청 본문 파싱
-    let body;
-    try {
-      body = req.body || {};
-    } catch (e) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid JSON in request body' 
-      });
-    }
-
-    const { action, data } = body;
+    const { action, data } = req.body || {};
     console.log(`[${new Date().toISOString()}] Action: ${action}`);
 
     if (action === 'test') {
@@ -95,7 +84,7 @@ export default async function handler(req, res) {
 
       console.log('[INFO] 주문 데이터:', { partName, quantity, price, buyer, project });
 
-      // 노션 데이터 구성
+      // 노션 데이터 구성 - 모든 컬럼을 Text 타입으로 수정
       const notionData = {
         parent: {
           database_id: NOTION_DATABASE_ID
@@ -111,29 +100,49 @@ export default async function handler(req, res) {
             ]
           },
           "날짜": {
-            date: {
-              start: new Date().toISOString().split('T')[0]
-            }
+            rich_text: [
+              {
+                text: {
+                  content: new Date().toLocaleDateString('ko-KR')
+                }
+              }
+            ]
           },
           "구매자": {
-            select: {
-              name: buyer
-            }
+            rich_text: [
+              {
+                text: {
+                  content: buyer
+                }
+              }
+            ]
           },
           "연구과제분류": {
-            select: {
-              name: project
-            }
+            rich_text: [
+              {
+                text: {
+                  content: project
+                }
+              }
+            ]
           },
           "구분": {
-            select: {
-              name: "연구재료비"
-            }
+            rich_text: [
+              {
+                text: {
+                  content: "연구재료비"
+                }
+              }
+            ]
           },
           "품목": {
-            select: {
-              name: "원재료"
-            }
+            rich_text: [
+              {
+                text: {
+                  content: "원재료"
+                }
+              }
+            ]
           },
           "내용": {
             rich_text: [
@@ -154,13 +163,20 @@ export default async function handler(req, res) {
             ]
           },
           "결제금액": {
-            number: price
+            rich_text: [
+              {
+                text: {
+                  content: `${price.toLocaleString()}원`
+                }
+              }
+            ]
           }
         }
       };
 
       try {
         console.log('[INFO] 노션에 데이터 전송 시작...');
+        console.log('[DEBUG] 전송 데이터:', JSON.stringify(notionData, null, 2));
         
         const response = await fetch('https://api.notion.com/v1/pages', {
           method: 'POST',
