@@ -1,4 +1,4 @@
-// api/notion.js - 모든 컬럼을 Text 타입으로 수정
+// api/notion.js - 주문번호 자동 증가 기능 추가
 export default async function handler(req, res) {
   // CORS 헤더 설정
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -84,99 +84,143 @@ export default async function handler(req, res) {
 
       console.log('[INFO] 주문 데이터:', { partName, quantity, price, buyer, project });
 
-      // 노션 데이터 구성 - 모든 컬럼을 Text 타입으로 수정
-      const notionData = {
-        parent: {
-          database_id: NOTION_DATABASE_ID
-        },
-        properties: {
-          "번호": {
-            title: [
-              {
-                text: {
-                  content: `${partName} ${quantity}개 주문`
-                }
-              }
-            ]
-          },
-          "날짜": {
-            rich_text: [
-              {
-                text: {
-                  content: new Date().toLocaleDateString('ko-KR')
-                }
-              }
-            ]
-          },
-          "구매자": {
-            rich_text: [
-              {
-                text: {
-                  content: buyer
-                }
-              }
-            ]
-          },
-          "연구과제분류": {
-            rich_text: [
-              {
-                text: {
-                  content: project
-                }
-              }
-            ]
-          },
-          "구분": {
-            rich_text: [
-              {
-                text: {
-                  content: "연구재료비"
-                }
-              }
-            ]
-          },
-          "품목": {
-            rich_text: [
-              {
-                text: {
-                  content: "원재료"
-                }
-              }
-            ]
-          },
-          "내용": {
-            rich_text: [
-              {
-                text: {
-                  content: `${partName} ${quantity}개`
-                }
-              }
-            ]
-          },
-          "구매처": {
-            rich_text: [
-              {
-                text: {
-                  content: "쉬멕스"
-                }
-              }
-            ]
-          },
-          "결제금액": {
-            rich_text: [
-              {
-                text: {
-                  content: `${price.toLocaleString()}원`
-                }
-              }
-            ]
-          }
-        }
-      };
-
       try {
-        console.log('[INFO] 노션에 데이터 전송 시작...');
-        console.log('[DEBUG] 전송 데이터:', JSON.stringify(notionData, null, 2));
+        // 1단계: 기존 주문번호 중 최댓값 조회
+        console.log('[INFO] 기존 주문번호 조회 중...');
+        
+        const queryResponse = await fetch(`https://api.notion.com/v1/databases/${NOTION_DATABASE_ID}/query`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${NOTION_API_KEY}`,
+            'Notion-Version': '2022-06-28',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            sorts: [
+              {
+                property: "번호",
+                direction: "descending"
+              }
+            ],
+            page_size: 1
+          })
+        });
+
+        let nextOrderNumber = 1; // 기본값
+
+        if (queryResponse.ok) {
+          const queryData = await queryResponse.json();
+          console.log('[INFO] 쿼리 결과:', queryData.results.length, '건');
+          
+          if (queryData.results && queryData.results.length > 0) {
+            const lastEntry = queryData.results[0];
+            const lastTitle = lastEntry.properties?.['번호']?.title?.[0]?.text?.content || '';
+            console.log('[INFO] 마지막 제목:', lastTitle);
+            
+            // 제목에서 숫자 추출 (예: "5" 또는 "주문-5" 등에서 5 추출)
+            const numberMatch = lastTitle.match(/\d+/);
+            if (numberMatch) {
+              const lastNumber = parseInt(numberMatch[0]);
+              nextOrderNumber = lastNumber + 1;
+              console.log('[INFO] 다음 주문번호:', nextOrderNumber);
+            }
+          }
+        } else {
+          console.log('[WARNING] 기존 데이터 조회 실패, 주문번호 1부터 시작');
+        }
+
+        // 2단계: 새 주문 데이터 생성
+        const notionData = {
+          parent: {
+            database_id: NOTION_DATABASE_ID
+          },
+          properties: {
+            "번호": {
+              title: [
+                {
+                  text: {
+                    content: nextOrderNumber.toString()
+                  }
+                }
+              ]
+            },
+            "날짜": {
+              rich_text: [
+                {
+                  text: {
+                    content: new Date().toLocaleDateString('ko-KR')
+                  }
+                }
+              ]
+            },
+            "구매자": {
+              rich_text: [
+                {
+                  text: {
+                    content: buyer
+                  }
+                }
+              ]
+            },
+            "연구과제분류": {
+              rich_text: [
+                {
+                  text: {
+                    content: project
+                  }
+                }
+              ]
+            },
+            "구분": {
+              rich_text: [
+                {
+                  text: {
+                    content: "연구재료비"
+                  }
+                }
+              ]
+            },
+            "품목": {
+              rich_text: [
+                {
+                  text: {
+                    content: "원재료"
+                  }
+                }
+              ]
+            },
+            "내용": {
+              rich_text: [
+                {
+                  text: {
+                    content: `${partName} ${quantity}개`
+                  }
+                }
+              ]
+            },
+            "구매처": {
+              rich_text: [
+                {
+                  text: {
+                    content: "쉬멕스"
+                  }
+                }
+              ]
+            },
+            "결제금액": {
+              rich_text: [
+                {
+                  text: {
+                    content: `${price.toLocaleString()}원`
+                  }
+                }
+              ]
+            }
+          }
+        };
+
+        // 3단계: 노션에 새 주문 추가
+        console.log('[INFO] 노션에 주문번호', nextOrderNumber, '기록 중...');
         
         const response = await fetch('https://api.notion.com/v1/pages', {
           method: 'POST',
@@ -191,11 +235,12 @@ export default async function handler(req, res) {
         const responseData = await response.json();
 
         if (response.ok) {
-          console.log('[SUCCESS] 노션 기록 성공! Page ID:', responseData.id);
+          console.log('[SUCCESS] 노션 기록 성공! 주문번호:', nextOrderNumber, 'Page ID:', responseData.id);
           return res.status(200).json({ 
             success: true, 
-            message: '노션에 성공적으로 기록되었습니다!',
+            message: `주문번호 ${nextOrderNumber}번으로 노션에 성공적으로 기록되었습니다!`,
             pageId: responseData.id,
+            orderNumber: nextOrderNumber,
             url: responseData.url
           });
         } else {
